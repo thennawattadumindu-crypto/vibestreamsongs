@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>VibeStream - Spotify Style Music Player</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1DB954;--g-hover:#1ed760;--glow:rgba(29,185,84,.3);
+  --bg:#000000;--bg2:#121212;--bg-card:#181818;--bg-card-hover:#282828;
+  --s1:#181818;--s2:#282828;--s3:#3e3e3e;--s4:#535353;
+  --txt:#ffffff;--muted:#b3b3b3;--dim:#727272;
+  --r:8px;--r2:12px;--r3:16px;
+  --t:.2s ease;
+  --sidebar:240px;--ph:90px;
+}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);color:var(--txt);
+  height:100dvh;overflow:hidden;
+  display:flex;flex-direction:column;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--s4)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden;padding:8px;gap:8px;background:var(--bg)}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--bg2);border-radius:var(--r2);
+  display:flex;flex-direction:column;overflow:hidden;
+  padding:20px 12px;gap:18px;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px}
+.brand-icon{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--txt);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;flex-shrink:0;
+}
+.brand-name{
+  font-size:18px;font-weight:700;letter-spacing:-0.5px;color:var(--txt);
+}
+.nav-menu{display:flex;flex-direction:column;gap:4px}
+.nav-btn{
+  width:100%;display:flex;align-items:center;gap:16px;
+  padding:10px 12px;border-radius:var(--r);
+  color:var(--muted);font-size:14px;font-weight:700;
+  transition:all var(--t);text-align:left;
+}
+.nav-btn:hover{color:var(--txt)}
+.nav-btn.on{color:var(--txt)}
+.nav-btn svg{width:24px;height:24px;flex-shrink:0}
+
+.library-section{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-card);border-radius:var(--r2);padding:12px}
+.lib-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 12px;color:var(--muted);font-size:13px;font-weight:700}
+.s-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.si{
+  display:flex;align-items:center;gap:12px;
+  padding:8px;border-radius:var(--r);cursor:pointer;
+  transition:background var(--t);
+}
+.si:hover{background:var(--bg-card-hover)}
+.si.on{background:var(--bg-card-hover)}
+.si.on .si-title{color:var(--g)}
+.si-art{width:48px;height:48px;border-radius:4px;flex-shrink:0;object-fit:cover}
+.si-info{flex:1;overflow:hidden}
+.si-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+.si-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq{display:flex;align-items:flex-end;gap:2px;height:14px;flex-shrink:0}
+.eq span{width:3px;border-radius:1px;background:var(--g);animation:eqa var(--d,.7s) ease-in-out infinite alternate}
+@keyframes eqa{from{height:2px}to{height:var(--h,13px)}}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2);border-radius:var(--r2);position:relative}
+.views{flex:1;display:flex;overflow:hidden}
+
+/* ── NOW PLAYING VIEW ── */
+.npv{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;background:linear-gradient(180deg, rgba(30,30,30,0.8) 0%, var(--bg2) 40%);border-radius:var(--r2)}
+
+/* Ambient gradient background */
+.amb{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0;opacity:0.4}
+.amb-b{position:absolute;border-radius:50%;filter:blur(120px);transition:background 1s}
+.ab1{width:500px;height:500px;top:-150px;left:-100px;background:#1db954}
+.ab2{width:400px;height:400px;bottom:0;right:-50px;background:#1e3264}
+
+/* scroll area */
+.npv-scroll{flex:1;overflow-y:auto;position:relative;z-index:1}
+.npv-inner{padding:24px 32px 32px}
+
+/* top bar */
+.np-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.np-lbl{font-size:14px;font-weight:700;color:var(--txt)}
+.ib{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all var(--t);flex-shrink:0}
+.ib:hover{background:rgba(0,0,0,.8);color:var(--txt);transform:scale(1.05)}
+.ib svg{width:18px;height:18px}
+
+/* Art */
+.art-wrap{padding:10px 0 20px;display:flex;justify-content:center}
+.art{
+  width:min(240px,50vw);height:min(240px,50vw);
+  border-radius:var(--r2);display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  box-shadow:0 16px 32px rgba(0,0,0,.6);
+  transition:transform .4s;flex-shrink:0;
+}
+.art img{width:100%;height:100%;object-fit:cover;border-radius:var(--r2)}
+.art.playing{animation:artpulse 4s ease-in-out infinite}
+@keyframes artpulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.02)}
+}
+
+/* Info row */
+.info-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.info-text{flex:1;overflow:hidden;padding-right:12px}
+.info-title{font-size:24px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+.info-artist{font-size:14px;color:var(--muted);margin-top:4px;font-weight:500}
+.hbtn{padding:8px;border-radius:50%;color:var(--muted);transition:all var(--t);flex-shrink:0}
+.hbtn:hover,.hbtn.on{color:var(--g);transform:scale(1.1)}
+.hbtn svg{width:24px;height:24px}
+
+/* Progress */
+.prog-wrap{margin-bottom:20px}
+.prog-bar{height:4px;border-radius:99px;background:var(--s3);position:relative;cursor:pointer;touch-action:none}
+.prog-fill{height:100%;border-radius:99px;background:var(--txt);position:relative;pointer-events:none;transition:background .2s}
+.prog-bar:hover .prog-fill,.prog-bar.drag .prog-fill{background:var(--g)}
+.prog-thumb{width:12px;height:12px;border-radius:50%;background:#fff;position:absolute;top:50%;right:-6px;transform:translateY(-50%) scale(0);transition:transform .2s;box-shadow:0 2px 4px rgba(0,0,0,.4);pointer-events:none}
+.prog-bar:hover .prog-thumb,.prog-bar.drag .prog-thumb{transform:translateY(-50%) scale(1)}
+.prog-times{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;font-weight:500}
+
+/* Controls */
+.ctrl-row{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:28px}
+.cb{color:var(--muted);padding:8px;border-radius:50%;transition:all var(--t);display:flex;align-items:center;justify-content:center}
+.cb:hover,.cb.on{color:var(--txt);transform:scale(1.08)}
+.cb.green{color:var(--g)}
+.cb svg{width:20px;height:20px}
+.cb-lg svg{width:24px;height:24px}
+.play-btn{
+  width:48px;height:48px;border-radius:50%;background:var(--txt);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);transition:all var(--t);
+}
+.play-btn:hover{transform:scale(1.06);background:#f0f0f0}
+.play-btn:active{transform:scale(.94)}
+.play-btn svg{width:20px;height:20px;fill:#000}
+
+/* ═══════════════════════════════════════
+   LYRICS PANEL
+═══════════════════════════════════════ */
+.lyr-zone{
+  background:rgba(25,25,25,0.7);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--r2);
+  padding:24px;
+  position:relative;
+  overflow:hidden;
+  backdrop-filter:blur(10px);
+}
+.lyr-badge-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.lyr-dot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:ldot 2s ease-in-out infinite}
+@keyframes ldot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+.lyr-lbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+.lyr-line-display{min-height:50px;display:flex;align-items:center;justify-content:center;text-align:center}
+.lyr-current{
+  font-size:20px;font-weight:700;color:var(--txt);line-height:1.4;
+  animation:lyrin .3s cubic-bezier(.34,1.56,.64,1) both;
+  text-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+@keyframes lyrin{
+  from{opacity:0;transform:translateY(10px) scale(.98)}
+  to  {opacity:1;transform:translateY(0)   scale(1)}
+}
+
+.lyr-next{
+  font-size:14px;font-weight:500;color:var(--dim);
+  text-align:center;margin-top:12px;min-height:20px;line-height:1.4;
+}
+
+.lyr-dots{
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  margin-top:16px;flex-wrap:wrap;
+}
+.lyr-dot-item{
+  width:4px;height:4px;border-radius:50%;background:var(--dim);
+  transition:all .3s;
+}
+.lyr-dot-item.cur{background:var(--g);transform:scale(1.4);width:12px;border-radius:99px}
+.lyr-dot-item.past{background:var(--s4)}
+
+/* ── QUEUE PANEL ── */
+.qpanel{width:300px;flex-shrink:0;background:var(--bg2);border-radius:var(--r2);display:flex;flex-direction:column;overflow:hidden;padding:16px;border-left:1px solid rgba(255,255,255,0.04)}
+.qpanel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px}
+.qpanel-title{font-size:14px;font-weight:700;color:var(--txt)}
+.qpanel-cnt{font-size:12px;color:var(--muted)}
+.q-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.qi{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);cursor:pointer;transition:background var(--t)}
+.qi:hover{background:var(--bg-card-hover)}
+.qi.on{background:var(--bg-card-hover)}
+.qi.on .qi-title{color:var(--g)}
+.qi-num{width:20px;text-align:center;font-size:12px;color:var(--muted);flex-shrink:0}
+.qi-art{width:40px;height:40px;border-radius:4px;flex-shrink:0;object-fit:cover}
+.qi-info{flex:1;overflow:hidden}
+.qi-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+.qi-artist{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── PLAYER BAR (BOTTOM) ── */
+.pbar{height:var(--ph);background:var(--bg);display:flex;align-items:center;padding:0 16px;gap:16px;flex-shrink:0;z-index:50}
+.pbar-left{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
+.pb-thumb{width:56px;height:56px;border-radius:4px;flex-shrink:0;object-fit:cover}
+.pb-info{flex:1;overflow:hidden}
+.pb-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt);cursor:pointer}
+.pb-title:hover{text-decoration:underline}
+.pb-artist{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-heart{color:var(--muted);padding:8px;border-radius:50%;transition:all var(--t);flex-shrink:0}
+.pb-heart:hover,.pb-heart.on{color:var(--g);transform:scale(1.1)}
+.pb-heart svg{width:18px;height:18px}
+
+.pbar-center{flex:2;max-width:600px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.pbar-btns{display:flex;align-items:center;gap:16px}
+.pbb{color:var(--muted);padding:4px;border-radius:50%;transition:all var(--t);display:flex;align-items:center;justify-content:center}
+.pbb:hover,.pbb.on{color:var(--txt);transform:scale(1.05)}
+.pbb.green{color:var(--g)}
+.pbb svg{width:18px;height:18px}
+.pbb-play{width:32px;height:32px;border-radius:50%;background:var(--txt);display:flex;align-items:center;justify-content:center;transition:all var(--t)}
+.pbb-play:hover{transform:scale(1.06);background:#f0f0f0}
+.pbb-play svg{width:14px;height:14px;fill:#000}
+
+.pbar-prog{width:100%;display:flex;align-items:center;gap:8px}
+.pb-time{font-size:11px;color:var(--muted);flex-shrink:0;width:32px;text-align:center}
+.pb-track{flex:1;height:4px;border-radius:99px;background:var(--s3);cursor:pointer;position:relative}
+.pb-fill{height:100%;border-radius:99px;background:var(--txt);pointer-events:none;transition:background .2s}
+.pb-track:hover .pb-fill{background:var(--g)}
+
+.pbar-right{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.vol-bar{width:90px;height:4px;border-radius:99px;background:var(--s3);cursor:pointer}
+.vol-fill{height:100%;border-radius:99px;background:var(--txt);transition:background .2s}
+.vol-bar:hover .vol-fill{background:var(--g)}
+
+/* ── MOBILE MINI PLAYER ── */
+.mini{display:none;background:var(--bg-card);margin:0 8px 8px;border-radius:var(--r);padding:8px 12px;align-items:center;gap:12px;cursor:pointer;position:relative;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.mini-prog{position:absolute;bottom:0;left:0;height:2px;background:var(--g);pointer-events:none;border-radius:0 0 var(--r) var(--r)}
+.mini-art{width:42px;height:42px;border-radius:4px;flex-shrink:0;object-fit:cover}
+.mini-info{flex:1;overflow:hidden}
+.mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+.mini-artist{font-size:11px;color:var(--muted)}
+.mini-btns{display:flex;gap:4px}
+.mini-btn{color:var(--muted);padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.mini-btn svg{width:22px;height:22px}
+
+/* ── MOBILE NAV ── */
+.mob-nav{display:none;background:var(--bg);border-top:1px solid rgba(255,255,255,0.06);padding:8px 0 max(8px,env(safe-area-inset-bottom))}
+.mob-nav-inner{display:flex;justify-content:space-around}
+.mnb{color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 16px;font-size:10px;font-weight:600;transition:color var(--t)}
+.mnb.on{color:var(--txt)}
+.mnb svg{width:22px;height:22px}
+
+/* ── MOBILE OVERLAY ── */
+.mob-ov{position:fixed;inset:0;background:var(--bg2);z-index:200;display:none;flex-direction:column;overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.mob-ov.open{transform:translateY(0)}
+.mob-handle{width:36px;height:4px;border-radius:99px;background:var(--s3);margin:12px auto 0;cursor:pointer}
+.mob-close{display:flex;align-items:center;gap:8px;padding:12px 20px;color:var(--txt);font-size:14px;font-weight:700}
+.mob-close svg{width:20px;height:20px}
+.mob-scroll{flex:1;overflow-y:auto;padding:0 20px 32px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--txt);color:var(--bg);font-size:13px;font-weight:700;padding:10px 24px;border-radius:99px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){.qpanel{display:none}}
+@media(max-width:768px){
+  .sidebar,.pbar{display:none}
+  .layout{padding:0;gap:0}
+  .main{border-radius:0}
+  .mini{display:flex}
+  .mob-nav{display:flex;flex-direction:column}
+  .mob-ov{display:flex}
+  .qpanel{display:none!important}
+  .npv-inner{padding:16px 20px 24px}
+}
+</style>
+</head>
+<body>
+
+<audio id="audio" preload="metadata"></audio>
+<div class="toast" id="toast"></div>
+
+<!-- DESKTOP LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">♫</div>
+      <div class="brand-name">VibeStream</div>
+    </div>
+    <div class="nav-menu">
+      <button class="nav-btn on">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33a2 2 0 0 1 1 1.732V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-6h-3v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.575a2 2 0 0 1 1-1.732l7.5-4.33z"/></svg>Home
+      </button>
+      <button class="nav-btn" onclick="toast('Search feature coming soon')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.533 1.27c5.376 0 9.733 4.357 9.733 9.733 0 2.138-.702 4.11-1.888 5.712l4.945 4.945-1.414 1.414-4.945-4.945a9.67 9.67 0 0 1-5.712 1.888C5.157 20.733 0 16.376 0 11s4.357-9.733 9.733-9.733zm0 2C6.48 3.27 3.27 6.48 3.27 10.533s3.21 7.263 7.263 7.263 7.263-3.21 7.263-7.263-3.21-7.263-7.263-7.263z"/></svg>Search
+      </button>
+    </div>
+    <div class="library-section">
+      <div class="lib-header">
+        <span>Playlists</span>
+        <span>+</span>
+      </div>
+      <div class="s-list" id="sideList"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="views">
+
+      <!-- NOW PLAYING -->
+      <div class="npv" id="npv">
+        <div class="amb">
+          <div class="amb-b ab1" id="blob1"></div>
+          <div class="amb-b ab2"></div>
+        </div>
+
+        <div class="npv-scroll">
+          <div class="npv-inner">
+            
+            <!-- top bar -->
+            <div class="np-top">
+              <button class="ib" onclick="toast('Playlist options')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+              </button>
+              <div class="np-lbl">Now Playing</div>
+              <button class="ib" onclick="toast('More options')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+              </button>
+            </div>
+
+            <!-- Album Art -->
+            <div class="art-wrap">
+              <div class="art" id="art">
+                <img id="artImg" src="" alt="Album Art">
+              </div>
+            </div>
+
+            <!-- Song info -->
+            <div class="info-row">
+              <div class="info-text">
+                <div class="info-title" id="npTitle">Song Title</div>
+                <div class="info-artist" id="npArtist">Artist Name</div>
+              </div>
+              <button class="hbtn" id="heartMain" onclick="toggleLike()">
+                <svg id="heartMainSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </button>
+            </div>
+
+            <!-- Progress -->
+            <div class="prog-wrap">
+              <div class="prog-bar" id="progBar">
+                <div class="prog-fill" id="progFill" style="width:0%">
+                  <div class="prog-thumb"></div>
+                </div>
+              </div>
+              <div class="prog-times">
+                <span id="ct">0:00</span>
+                <span id="dt">0:00</span>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="ctrl-row">
+              <button class="cb green" id="shuffleBtn" onclick="toggleShuffle()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 8.46 20 10.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+              </button>
+              <button class="cb cb-lg" onclick="prevSong()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+              </button>
+              <button class="play-btn" id="mainPlayBtn" onclick="togglePlay()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,4 20,12 8,20"/></svg>
+              </button>
+              <button class="cb cb-lg" onclick="nextSong()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+              </button>
+              <button class="cb" id="repeatBtn" onclick="toggleRepeat()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+              </button>
+            </div>
+
+            <!-- LYRICS PANEL -->
+            <div class="lyr-zone" id="lyrZone">
+              <div class="lyr-badge-row">
+                <div class="lyr-dot"></div>
+                <span class="lyr-lbl">Synchronized Lyrics</span>
+              </div>
+              <div class="lyr-line-display">
+                <div class="lyr-current" id="lyrCurrent">Press Play to start music</div>
+              </div>
+              <div class="lyr-next" id="lyrNext"></div>
+              <div class="lyr-dots" id="lyrDots"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- QUEUE PANEL -->
+      <div class="qpanel">
+        <div class="qpanel-head">
+          <div class="qpanel-title">Queue</div>
+          <div class="qpanel-cnt" id="qCnt"></div>
+        </div>
+        <div class="q-list" id="qList"></div>
+      </div>
+
+    </div>
+
+    <!-- DESKTOP PLAYER BAR -->
+    <div class="pbar">
+      <div class="pbar-left">
+        <img class="pb-thumb" id="pbThumb" src="" alt="Thumb">
+        <div class="pb-info">
+          <div class="pb-title" id="pbTitle">Song Title</div>
+          <div class="pb-artist" id="pbArtist">Artist Name</div>
+        </div>
+        <button class="pb-heart" id="heartPb" onclick="toggleLike()">
+          <svg id="heartPbSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <div class="pbar-center">
+        <div class="pbar-btns">
+          <button class="pbb green" id="pbShuffle" onclick="toggleShuffle()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 8.46 20 10.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+          </button>
+          <button class="pbb" onclick="prevSong()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button class="pbb-play" id="pbPlayBtn" onclick="togglePlay()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          </button>
+          <button class="pbb" onclick="nextSong()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button class="pbb" id="pbRepeat" onclick="toggleRepeat()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+          </button>
+        </div>
+        <div class="pbar-prog">
+          <span class="pb-time" id="pbCt">0:00</span>
+          <div class="pb-track" id="pbTrack">
+            <div class="pb-fill" id="pbFill" style="width:0%"></div>
+          </div>
+          <span class="pb-time" id="pbDt">0:00</span>
+        </div>
+      </div>
+      <div class="pbar-right">
+        <button class="pbb" onclick="toggleMute()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        <div class="vol-bar" id="volBar">
+          <div class="vol-fill" id="volFill" style="width:80%"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MOBILE MINI PLAYER -->
+<div class="mini" id="miniPlayer" onclick="openOv()">
+  <div class="mini-prog" id="miniProg" style="width:0%"></div>
+  <img class="mini-art" id="miniArt" src="" alt="Thumb">
+  <div class="mini-info">
+    <div class="mini-title" id="miniTitle">Song Title</div>
+    <div class="mini-artist" id="miniArtist">Artist Name</div>
+  </div>
+  <div class="mini-btns">
+    <button class="mini-btn" onclick="event.stopPropagation();prevSong()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+    <button class="mini-btn" id="miniPlayBtn" onclick="event.stopPropagation();togglePlay()"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg></button>
+    <button class="mini-btn" onclick="event.stopPropagation();nextSong()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<div class="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mnb on" id="mnHome" onclick="switchTab('home')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33a2 2 0 0 1 1 1.732V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-6h-3v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.575a2 2 0 0 1 1-1.732l7.5-4.33z"/></svg>Home</button>
+    <button class="mnb" onclick="toast('Search feature coming soon')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.533 1.27c5.376 0 9.733 4.357 9.733 9.733 0 2.138-.702 4.11-1.888 5.712l4.945 4.945-1.414 1.414-4.945-4.945a9.67 9.67 0 0 1-5.712 1.888C5.157 20.733 0 16.376 0 11s4.357-9.733 9.733-9.733zm0 2C6.48 3.27 3.27 6.48 3.27 10.533s3.21 7.263 7.263 7.263 7.263-3.21 7.263-7.263-3.21-7.263-7.263-7.263z"/></svg>Search</button>
+  </div>
+</div>
+
+<!-- MOBILE FULL OVERLAY -->
+<div class="mob-ov" id="mobOv">
+  <div class="mob-handle" onclick="closeOv()"></div>
+  <button class="mob-close" onclick="closeOv()">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+    Now Playing
+  </button>
+  <div class="mob-scroll">
+    <div class="art-wrap">
+      <div class="art" id="mobArt" style="width:min(260px,75vw);height:min(260px,75vw)">
+        <img id="mobArtImg" src="" alt="Album Art">
+      </div>
+    </div>
+    <div class="info-row">
+      <div class="info-text">
+        <div class="info-title" id="mobTitle">Song Title</div>
+        <div class="info-artist" id="mobArtist">Artist Name</div>
+      </div>
+      <button class="hbtn" onclick="toggleLike()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-bar" id="mobProgBar">
+        <div class="prog-fill" id="mobProgFill" style="width:0%"><div class="prog-thumb"></div></div>
+      </div>
+      <div class="prog-times"><span id="mobCt">0:00</span><span id="mobDt">0:00</span></div>
+    </div>
+    <div class="ctrl-row">
+      <button class="cb green" onclick="toggleShuffle()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 8.46 20 10.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
+      <button class="cb cb-lg" onclick="prevSong()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+      <button class="play-btn" id="mobPlayBtn" onclick="togglePlay()"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,4 20,12 8,20"/></svg></button>
+      <button class="cb cb-lg" onclick="nextSong()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      <button class="cb" onclick="toggleRepeat()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+    </div>
+    <div class="lyr-zone" id="mobLyrZone">
+      <div class="lyr-badge-row">
+        <div class="lyr-dot"></div>
+        <span class="lyr-lbl">Synchronized Lyrics</span>
+      </div>
+      <div class="lyr-line-display">
+        <div class="lyr-current" id="mobLyrCurrent">Press Play to start music</div>
+      </div>
+      <div class="lyr-next" id="mobLyrNext"></div>
+      <div class="lyr-dots" id="mobLyrDots"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* SONGS DATA — English titles, real Unsplash images, audio & timed lyrics */
+const SONGS = [
+  {
+    title: 'Me Hitha Sanasa',
+    artist: 'Uvindu Ayshcharya',
+    cover: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
+    color: '#1db954',
+    src: 'Me Hitha Sanasa.mp3',
+    lyrics: [{t:0, text:""},{t:17, text:"මේ රැය නුඹ මා..."},{t:22, text:"ලංවී බැඳෙනා..."},{t:26, text:"රහසින් කොඳුරා..."},{t:29, text:"ලඟ ඉන්නට හිතුනා"},{t:33, text:" "},{t:34, text:"ඔය නෙතු ලඟ තනිවෙන්නට"},{t:38, text:"සනසා තව හිත දුන්නම.."},{t:43, text:"මා නම් නුඹ මගෙ වෙන බව"},{t:47, text:"දැනුනා දුර කල් ඇතුවම..."},{t:51, text:"හිඳින්නේ බලා නුඹේ ඔය "},{t:55, text:"රුව මාගෙ කියා"},{t:59, text:"නුඹ මෙහි සනසා නොයනු හිත "},
+            {t:64, text:"එක බැල්මෙ නුරා"},{t:67, text:" "},{t:68, text:"මේ හිත සනසාම ඇදෙනා..."},{t:72, text:"නුඹ ලඟ හිඳ නෙතු සැලෙනා..."},{t:76, text:"නුඹ මගෙ කියු කවියේ මා..."},{t:81, text:"සනසාලන රුව චායා..."},{t:84, text:" "},{t:85, text:"මේ හිත සනසාම ඇදෙනා..."},{t:89, text:"නුඹ ලඟ හිඳ නෙතු සැලෙනා..."},{t:93, text:"නුඹ මගෙ කියු කවියේ මා..."},{t:98, text:"සනසාලන රුව චායා..."},{t:102, text:" "},
+            {t:127, text:"පෙම් හැඟුම් සනසාල ඉන්නට"},{t:131, text:"රෑ ගනන් දුර හීන මැවුවම"},{t:135, text:"ආදරෙන් අපි ඉන්නේ කෝමද "},{t:139, text:"වාරණා නැතුවම සදා..."},{t:143, text:"අනේ ඉතිං මගේ නිසා..."},{t:147, text:"බලාන ඉන්නවා සිතා..."},{t:151, text:"මගේ නැතත් අනේ ඔයා..."},{t:156, text:"හිඳින් සිනා සිලා..."},{t:160, text:" "},{t:161, text:"මේ හිත සනසාම ඇදෙනා..."},{t:165, text:"නුඹ ලඟ හිඳ නෙතු සැලෙනා..."},
+            {t:169, text:"නුඹ මගෙ කියු කවියේ මා..."},{t:174, text:"සනසාලන රුව චායා..."},{t:178, text:" "},{t:179, text:"මේ හිත සනසාම ඇදෙනා..."},{t:183, text:"නුඹ ලඟ හිඳ නෙතු සැලෙනා..."},{t:187, text:"නුඹ මගෙ කියු කවියේ මා..."},{t:191, text:"සනසාලන රුව චායා..."},{t:195, text:" "},{t:199, text:"මේ හිත සනසාම ඇදෙනා..."},{t:203, text:" "},{t:207, text:"සනසාලන රුව චායා..."},{t:211, text:" "},{t:212, text:"- Thank you"}
+    ]
+  },
+  {
+    title: 'Hathpethi Mal',
+    artist: 'Iman Fernando',
+    cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=600&auto=format&fit=crop',
+    color: '#e74c3c',
+    src: 'Hathpethi Mal.mp3',
+    lyrics: [{t: 0, text: ""},{t: 24, text: "හත්පෙති මල් වාගේ මල්වාරේ නැතුවත් මාව සොයලා"},{t: 31, text: "තහනම් ඔය ආලේ පහසක් දීලා"},{t: 36, text: "අවසන් පෙම මාගේ අඩමානේ හැගුමක් ගාව තියලා"},{t: 44, text: "තහනම් අඟනාවේ ඇයි ලං වීලා"},{t: 48, text: ""},{t: 49, text: "හත් පෙත්තෙන් එකක් ඉල්ලා"},{t: 52, text: "රොන් සුවඳක් හොරෙන් වින්දා"},{t: 55, text: "මල් රොන් රස වැඩිද මංදා"},{t: 58, text: "නුඹ පරවෙන්නත් ලඟ නිසා"},{t: 61, text: "මද සුලඟක් අතින් අල්ලා"},
+            {t: 64, text: "සමුදෙන්නට කලින් දන්වා"},{t: 67, text: "මල් පෙත්තක නුඹව හංගා දෙනවද"},{t: 71, text: "මාරුතේම ඈතට අරගෙන"},{t: 74, text: "Hmm…"},{t: 96, text: "Hmm…"},{t: 100, text: " "},{t: 105, text: "ළඟ පිපුනට ඈ තවදුර බව දැනුනේ නම් නෑ…"},{t: 111, text: "දුර පිපුනම තව හැඩ නුඹ නැතුවත් කම් නෑ"},{t: 116, text: "Hmm…"},{t: 117, text: "මල් පෙති අග මා තනිවුන වග හිතුවේ නම් නෑ…."},{t: 123, text: "නුඹ හැර වෙන මල් සුවඳක් අඳුරන්නේ නෑ"},{t: 129, text: "කලු ආකහේ අග"},
+            {t: 131, text: "දේදුනු මල නුඹ කාගේ දන්නෑනේ"},{t: 135, text: "කොඳුරා මගේ බව"},{t: 137, text: "නෑසුනු ලෙස නුඹ ආවේ ආයේ…."},{t: 141, text: "හත් පෙත්තෙන් එකක් ඉල්ලා"},{t: 145, text: "රොන් සුවඳක් හොරෙන් වින්දා"},{t: 147, text: "මල් රොන් රස වැඩිද මංදා"},{t: 150, text: "නුඹ පරවෙන්නත් ලඟ නිසා"},{t: 154, text: "මද සුලඟක් අතින් අල්ලා"},
+            {t: 157, text: "සමුදෙන්නට කලින් දන්වා"},{t: 160, text: "මල් පෙත්තක නුඹව හංගා දෙනවද"},{t: 164, text: "මාරුතේම ඈතට අරගෙන"},{t: 167, text: "Hmm…"},{t: 181, text: ""},{t: 190, text: "- Thank you"}
+    ]
+  },
+  {
+    title: 'Dewaduthiyak',
+    artist: 'Mihiran',
+    cover: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600&auto=format&fit=crop',
+    color: '#3498db',
+    src: 'Dewaduthiyak.mp3',
+    lyrics: [{t:0, text: " "},{t:13, text: "මධු විත විඳි රෑ වෙරළ තලේ"},{t:19, text: "ඈ නෙතු හසරැල් මා නෙතඟ වෙලේ"},{t:25, text: "සඳ සිසිලයි මා සිත පතන සුවේ"},{t:30, text: "ඒ සඳ නුඹමයි හද අඹරේ මගේ"},{t:35, text: " "},{t:47, text: "මධු විත විඳි රෑ වෙරළ තලේ"},{t:53, text: "ඈ නෙතු හසරැල් මා නෙතඟ වෙලේ"},{t:59, text: "සඳ සිසිලයි මා සිත පතන සුවේ"},{t:64, text: "ඒ සඳ නුඹමයි හද අඹරේ මගේ"},
+            {t:69, text: "ඇත සිත ඉඩ දී මා"},{t:72, text: "නෙතු කැන් පියවී"},{t:75, text: "සුව යහනකි ඈ ලැම - ගතට දැනේ"},{t:80, text: "දේවදූතියක් දෙනෙත පිනාවී"},{t:86, text: "ඒ හසරැල් හිමි මටද නුඹේ"},{t:91, text: "මධු විත විඳි රෑ වෙරළ තලේ"},{t:97, text: "ඈ නෙතු හසරැල් මා නෙතඟ වෙලේ"},{t:103, text: "සඳ සිසිලයි මා සිත පතන සුවේ"},{t:108, text: "ඒ සඳ නුඹමයි හද අඹරේ මගේ"},{t:113, text: " "},{t:126, text: "ලවැලි තලාවේ - හමු වූ වෙලාවේ"},
+            {t:132, text: "නුඹෙ දෙතොලින් පවසන හැඟුමන්"},{t:137, text: "හැකිද වලාවේ - ලොවම මුලාවේ"},{t:143, text: "දමා නොගෙනු හෙට දින අළුයම්"},{t:148, text: "නොවනු සඳේ මේ රැය අවසන්"},{t:154, text: "මධු විත විඳි රෑ වෙරළ තලේ"},{t:160, text: "ඈ නෙතු හසරැල් මා නෙතඟ වෙලේ"},{t:166, text: "සඳ සිසිලයි මා සිත පතන සුවේ"},{t:171, text: "ඒ සඳ නුඹමයි හද අඹරේ මගේ"},{t:176, text: "නිදි නෑ මම මේ වෙරළ තලේ"},{t:184, text: "- Thank you"}
+    ]
+  },
+  {
+    title: 'Dannawada Mawa',
+    artist: 'Muthuja Sanahas',
+    cover: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
+    color: '#9b59b6',
+    src: 'Dannawada Mawa .mp3',
+    lyrics: [{t:0, text: ""}, {t:12, text: "කාලෙකට කලියෙන්"},{t:15, text: "නුබෙන් නිවෙනා කෙනෙක් උන්නා"},{t:20, text: "මමත්  හොදින් දන්නා"},{t:24, text: "ඇගෙන් පමණක්"},{t:26, text: "හිතින් නිවෙනා"},{t:29, text: "දින නෑ යලිත් එන්නේ"},{t:33, text: "මතක ගානේ නුබව විමසා..."},{t:38, text: "නුඹ නෑ ළගින් රැදුනේ"},{t:42, text: "එදා වාගේ මාව සනසා..."},{t:50, text: "පෙරදාක උන්නු ආදරී නුඹ"},{t:55, text: "දන්නවාද මාව"},{t:59, text: "දන්නවාද මාව"},{t:63, text: "නුඹ ගාව උන් කෙනාව"},
+            {t:69, text: "මගෙ මතකය නුඹ ගාව"},{t:72, text: "නුඹ ඇයි වෙනකෙකු ගාව"},{t:78, text: "තරු ගානේ මැව් හීන"},{t:82, text: "බිදුනාද මං ගාව?"},{t:108, text: "මතක ළග නවතින්නේ නෑ මං ආයේ..."},{t:117, text: "නුඹව මට මගෙ වෙන්නෙ නෑ නම් ආයේ..."},{t:125, text: "මම උන්නා නුඹේ ළගින්"},{t:131, text: "නුඹේම වී සසරේම"},{t:135, text: "නුඹ උන්නේ මගේ ළගින්"},{t:139, text: "මගේ නොවී හැමදාම"},{t:143, text: "කවදාවත් මගේ නොවනා"},
+            {t:148, text: "නුඹ ළඟ මං ආලේ සොයනා"},{t:153, text: "මං නුඹගෙන් තව නිවෙනා"},{t:158, text: "දිනයක් නෑ යළි පතනා"},{t:165, text: "පෙරදාක උන්නු ආදරී නුඹ"},{t:170, text: "දන්නවාද මාව"},{t:174, text: "දන්නවාද මාව"},{t:178, text: "නුඹ ගාව උන් කෙනාව"},{t:183, text: "මගෙ මතකය නුඹ ගාව"},{t:187, text: "නුඹ ඇයි වෙනකෙගු ගාව"},{t:192, text: "තරු ගානේ මැව් හීන"},{t:196, text: "බිදුනාද මං ගාව..//"},{t:205, text: "- Thank you"}
+    ]
+  },
+  {
+    title: 'Magema Radha',
+    artist: 'Imesh Sandeepa',
+    cover: 'https://i.pinimg.com/736x/9f/08/6a/9f086a06461aaf0aafa2df6b9c4d8509.jpg',
+    color: '#9b59b6',
+    src: 'Magema Radha.mp3',
+    lyrics: [{t:0, text: ""},{t:26, text: "ප්‍රේම කෙරුවේ මාගේ දෑසේ තියාලා"},{t:31, text: "ඈ සැනසුවේ මාගේ ආශා නසාලා"},{t:37, text: "හීන තිබුණා පාරේ ආවේම බාධා "},{t:42, text: "මා මදිවුණා නේදෝ මාගේම රාධා"},{t:49, text: "මේ ආදරේදී ප්‍රේමේ නෑ හීන වූයේ "},{t:55, text: "ඈගේ හිතේහී මාගේ රූපේ නොවූයේ"},{t:60, text: "මේ වාරයේදී ඈ නෑ මාගේම වූයේ"},{t:65, text: "පෙරසේ හිතේහී මාගේ සෙනේමයි තිබූයේ"},
+            {t:69, text: "ඔ මාගේ ප්‍රාණේ ඈ වීලා රසෝඝේ යාවී ඈ පීනා"},{t:74, text: "එදා ඒ ප්‍රේමේ නෑවීලා පෙළේවී හිතේ වේදනා"},{t:80, text: "ඔ මාගේ ප්‍රාණේ ඈ වීලා රසෝඝේ යාවී ඈ පීනා"},{t:85, text: "එදා ඒ ප්‍රේමේ නෑවීලා පෙළේවී හිතේ වේදනා"},{t:91, text: ""},{t:113, text: "නාරී ඉනාවේ කීදේ නොතේරේ"},{t:118, text: "ආලේ වෙළී මා පාවීය දෝරේ"},{t:124, text: "ඈ ගාව වූවා මාගේ අමෝදේ"},{t:129, text: "මා සෙව්ව ප්‍රේමේ කෝ දෑසේහි ඈගේ"},
+            {t:134, text: "සෑමදේ තේරුණා යාවෙලා කාලයේ රේඛා"},{t:139, text: "ඈ කෙරේ මේ හිතේ - නෑ ද්වේෂ භාෂා"},{t:145, text: "ප්‍රේම කෙරුවේ මාගේ දෑසේ තියාලා"},{t:150, text: "ඈ සැනසුවේ මාගේ ආශා නසාලා"},{t:154, text: "හීන තිබුණා පාරේ ආවේම බාධා "},{t:160, text: "මා මදිවුණා නේදෝ මාගේම රාධා"},
+            {t:166, text: "මේ ආදරේදී ප්‍රේමේ නෑ හීන වූයේ "},{t:172, text: "ඈගේ හිතේහී මාගේ රූපේ නොවූයේ"},{t:176, text: "මේ වාරයේදී ඈ නෑ මාගේම වූයේ"},{t:183, text: "පෙරසේ හිතේහී මාගේ සෙනේමයි තිබූයේ"},{t:187, text: "ඔ මාගේ ප්‍රාණේ ඈ වීලා රසෝඝේ යාවී ඈ පීනා"},{t:191, text: "එදා ඒ ප්‍රේමේ නෑවීලා පෙළේවී හිතේ වේදනා"},{t:197, text: "ඔ මාගේ ප්‍රාණේ ඈ වීලා රසෝඝේ යාවී ඈ පීනා"},
+            {t:202, text: "එදා ඒ ප්‍රේමේ නෑවීලා පෙළේවී හිතේ වේදනා"},{t:208, text: ""},{t:208, text: "- Thank you"}
+    ]
+  }
+];
+
+/* STATE */
+const audio = document.getElementById('audio');
+let cur     = 0;
+let playing = false;
+let shuffle = false;
+let repeat  = false;
+let muted   = false;
+let vol     = 80;
+let liked   = {};
+let lastLyrIdx = -1;
+
+audio.volume = vol / 100;
+
+audio.addEventListener('timeupdate', onTimeUpdate);
+audio.addEventListener('loadedmetadata', () => { setTime(0, audio.duration || 0); });
+audio.addEventListener('play',  () => { playing = true;  updatePlayUI(); renderQueues(); });
+audio.addEventListener('pause', () => { playing = false; updatePlayUI(); renderQueues(); });
+audio.addEventListener('ended', () => { if(repeat){audio.currentTime=0;audio.play();}else nextSong(); });
+audio.addEventListener('error', () => { toast('⚠️ Error loading audio stream'); playing=false; updatePlayUI(); });
+
+function onTimeUpdate() {
+  const d = audio.duration || 0;
+  const t = audio.currentTime || 0;
+  const pct = d > 0 ? (t / d) * 100 : 0;
+
+  ['progFill','mobProgFill','pbFill'].forEach(id => {
+    const e = document.getElementById(id); if(e) e.style.width = pct + '%';
+  });
+  const mp = document.getElementById('miniProg'); if(mp) mp.style.width = pct + '%';
+
+  setTime(t, d);
+
+  const lyrics = SONGS[cur].lyrics;
+  let idx = 0;
+  for (let i = 0; i < lyrics.length; i++) {
+    if (t >= lyrics[i].t) idx = i;
+    else break;
+  }
+
+  if (idx !== lastLyrIdx) {
+    lastLyrIdx = idx;
+    renderCurrentLyric(idx);
+  }
+}
+
+function renderCurrentLyric(idx) {
+  const lyrics   = SONGS[cur].lyrics;
+  const curText  = lyrics[idx]  ? lyrics[idx].text  : '';
+  const nextText = lyrics[idx+1] ? lyrics[idx+1].text : '';
+
+  ['lyrCurrent','mobLyrCurrent'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) {
+      el.style.animation = 'none';
+      el.offsetHeight;
+      el.style.animation = '';
+      el.textContent = curText || '♪';
+    }
+  });
+
+  ['lyrNext','mobLyrNext'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = nextText;
+  });
+
+  ['lyrZone','mobLyrZone'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('active', playing && !!curText);
+  });
+
+  renderDots(idx, lyrics.length);
+}
+
+function renderDots(idx, total) {
+  const MAX = 12;
+  const count = Math.min(total, MAX);
+  const ratio = total / count;
+  const html = Array.from({length: count}, (_, i) => {
+    const realIdx = Math.round(i * ratio);
+    let cls = 'lyr-dot-item';
+    if (realIdx === idx)      cls += ' cur';
+    else if (realIdx < idx)   cls += ' past';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+
+  ['lyrDots','mobLyrDots'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.innerHTML = html;
+  });
+}
+
+function loadSong(idx, autoplay = true) {
+  cur = ((idx % SONGS.length) + SONGS.length) % SONGS.length;
+  lastLyrIdx = -1;
+
+  const s = SONGS[cur];
+  audio.src = s.src;
+  audio.load();
+
+  renderCurrentLyric(0);
+  renderDots(0, s.lyrics.length);
+
+  if (autoplay) {
+    audio.play().catch(() => toast('Click Play to start'));
+  }
+
+  updateSongUI(s);
+  renderQueues();
+  setProgress(0);
+  setTime(0, 0);
+}
+
+function togglePlay() {
+  if (audio.paused) audio.play().catch(() => toast('Loading track...'));
+  else audio.pause();
+}
+
+function nextSong() {
+  loadSong(shuffle ? Math.floor(Math.random()*SONGS.length) : (cur+1)%SONGS.length);
+}
+
+function prevSong() {
+  if (audio.currentTime > 4) { audio.currentTime = 0; return; }
+  loadSong(shuffle ? Math.floor(Math.random()*SONGS.length) : (cur-1+SONGS.length)%SONGS.length);
+}
+
+function toggleShuffle() {
+  shuffle = !shuffle;
+  ['shuffleBtn','pbShuffle'].forEach(id => { const b=document.getElementById(id); if(b) b.classList.toggle('green',shuffle); });
+  toast(shuffle ? 'Shuffle Enabled' : 'Shuffle Disabled');
+}
+
+function toggleRepeat() {
+  repeat = !repeat;
+  ['repeatBtn','pbRepeat'].forEach(id => { const b=document.getElementById(id); if(b){b.classList.toggle('green',repeat);b.style.color=repeat?'var(--g)':''} });
+  toast(repeat ? 'Repeat Enabled' : 'Repeat Disabled');
+}
+
+function toggleMute() {
+  muted = !muted; audio.muted = muted;
+  const f = document.getElementById('volFill'); if(f) f.style.width = muted ? '0%' : vol+'%';
+  toast(muted ? 'Muted' : 'Unmuted');
+}
+
+function toggleLike() {
+  liked[cur] = !liked[cur]; updateHearts();
+  toast(liked[cur] ? 'Added to Liked Songs' : 'Removed from Liked Songs');
+}
+
+function updateHearts() {
+  const on = !!liked[cur];
+  ['heartMain','heartPb'].forEach(id => { const b=document.getElementById(id); if(b) b.classList.toggle('on',on); });
+  ['heartMainSvg','heartPbSvg'].forEach(id => {
+    const s=document.getElementById(id); if(!s) return;
+    s.setAttribute('fill', on?'var(--g)':'none');
+    s.setAttribute('stroke', on?'var(--g)':'currentColor');
+  });
+}
+
+function seekTo(pct) {
+  if (!isFinite(audio.duration)||audio.duration===0) return;
+  audio.currentTime = (pct/100)*audio.duration;
+}
+
+function makeSeekable(barId) {
+  const bar = document.getElementById(barId); if(!bar) return;
+  const getP = cx => { const r=bar.getBoundingClientRect(); return Math.max(0,Math.min(100,((cx-r.left)/r.width)*100)); };
+  bar.addEventListener('mousedown', e => {
+    bar.classList.add('drag'); seekTo(getP(e.clientX));
+    const mv = ev => seekTo(getP(ev.clientX));
+    const up = () => { bar.classList.remove('drag'); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  });
+  bar.addEventListener('touchstart', e => {
+    bar.classList.add('drag'); seekTo(getP(e.touches[0].clientX));
+    const mv = ev => seekTo(getP(ev.touches[0].clientX));
+    const en = () => { bar.classList.remove('drag'); bar.removeEventListener('touchmove',mv); bar.removeEventListener('touchend',en); };
+    bar.addEventListener('touchmove',mv,{passive:true}); bar.addEventListener('touchend',en);
+  },{passive:true});
+}
+
+makeSeekable('progBar');
+makeSeekable('mobProgBar');
+
+document.getElementById('pbTrack').addEventListener('click', function(e) {
+  const r=this.getBoundingClientRect(); seekTo(((e.clientX-r.left)/r.width)*100);
+});
+
+document.getElementById('volBar').addEventListener('click', function(e) {
+  const r=this.getBoundingClientRect();
+  vol = Math.max(0,Math.min(100,((e.clientX-r.left)/r.width)*100));
+  audio.volume=vol/100; document.getElementById('volFill').style.width=vol+'%';
+});
+
+function setProgress(pct) {
+  ['progFill','mobProgFill','pbFill'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.width=pct+'%'});
+  const mp=document.getElementById('miniProg');if(mp)mp.style.width=pct+'%';
+}
+
+const fmt = s => { if(!isFinite(s)||s<0)return'0:00';const m=Math.floor(s/60),sec=Math.floor(s%60);return`${m}:${sec.toString().padStart(2,'0')}`; };
+function setTime(t,d) {
+  [['ct','dt'],['pbCt','pbDt'],['mobCt','mobDt']].forEach(([c,di])=>{
+    const ce=document.getElementById(c),de=document.getElementById(di);
+    if(ce)ce.textContent=fmt(t); if(de)de.textContent=fmt(d);
+  });
+}
+
+const P_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+const PL_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,4 20,12 8,20"/></svg>`;
+
+function updatePlayUI() {
+  ['mainPlayBtn','mobPlayBtn'].forEach(id=>{const b=document.getElementById(id);if(b)b.innerHTML=playing?P_SVG:PL_SVG;});
+  const mb=document.getElementById('miniPlayBtn');
+  if(mb)mb.innerHTML=playing?P_SVG:PL_SVG;
+  const pb=document.getElementById('pbPlayBtn');
+  if(pb)pb.innerHTML=playing?`<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`:`<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5,3 19,12 5,21"/></svg>`;
+  ['art','mobArt'].forEach(id=>{const a=document.getElementById(id);if(a)a.classList.toggle('playing',playing);});
+}
+
+function updateSongUI(s) {
+  ['artImg','mobArtImg','pbThumb','miniArt'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e) e.src = s.cover;
+  });
+  ['npTitle','mobTitle','pbTitle','miniTitle'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=s.title;});
+  ['npArtist','mobArtist','pbArtist','miniArtist'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=s.artist;});
+  
+  const b1=document.getElementById('blob1');
+  if(b1)b1.style.background=s.color;
+  updateHearts();
+}
+
+function renderQueues() {
+  const EQ=`<div class="eq"><span style="--d:.6s;--h:12px"></span><span style="--d:.9s;--h:8px"></span><span style="--d:.7s;--h:14px"></span></div>`;
+  const sl=document.getElementById('sideList');
+  if(sl)sl.innerHTML=SONGS.map((s,i)=>`
+    <div class="si${i===cur?' on':''}" onclick="loadSong(${i})">
+      <img class="si-art" src="${s.cover}" alt="Art">
+      <div class="si-info"><div class="si-title">${s.title}</div><div class="si-sub">${s.artist}</div></div>
+      ${i===cur&&playing?EQ:''}
+    </div>`).join('');
+  const ql=document.getElementById('qList');
+  if(ql)ql.innerHTML=SONGS.map((s,i)=>`
+    <div class="qi${i===cur?' on':''}" onclick="loadSong(${i})">
+      <div class="qi-num">${i===cur&&playing?EQ:i+1}</div>
+      <img class="qi-art" src="${s.cover}" alt="Art">
+      <div class="qi-info"><div class="qi-title">${s.title}</div><div class="qi-artist">${s.artist}</div></div>
+    </div>`).join('');
+  const qc=document.getElementById('qCnt');if(qc)qc.textContent=`${SONGS.length} Songs`;
+}
+
+function openOv(){const o=document.getElementById('mobOv');o.style.display='flex';requestAnimationFrame(()=>o.classList.add('open'));}
+function closeOv(){const o=document.getElementById('mobOv');o.classList.remove('open');setTimeout(()=>o.style.display='none',350);}
+
+let ty0=0;
+const ov=document.getElementById('mobOv');
+ov.addEventListener('touchstart',e=>{ty0=e.touches[0].clientY;},{passive:true});
+ov.addEventListener('touchend',e=>{if(e.changedTouches[0].clientY-ty0>80)closeOv();},{passive:true});
+
+let toastT;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.key===' '){e.preventDefault();togglePlay();}
+  if(e.key==='ArrowRight'){e.preventDefault();nextSong();}
+  if(e.key==='ArrowLeft'){e.preventDefault();prevSong();}
+  if(e.key.toLowerCase()==='m')toggleMute();
+  if(e.key.toLowerCase()==='s')toggleShuffle();
+  if(e.key.toLowerCase()==='r')toggleRepeat();
+});
+
+(function init(){
+  loadSong(0,false);
+  updatePlayUI();
+})();
+</script>
+</body>
+</html>
